@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "test-group-chat-client-side-solution",
+    "id": "14dcce1c-7dba-42ba-a14f-d360be7ed3bb",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.20.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Test_GroupChat description"
+      },
+      "longDescription": {
+        "default": "Test_GroupChat description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "test-group-chat Feature",
+        "description": "The feature that activates elements of the test-group-chat solution.",
+        "id": "994c6630-4ebd-4ca7-9c39-7426870479bb",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/test-group-chat.sppkg"
+  }
+}
