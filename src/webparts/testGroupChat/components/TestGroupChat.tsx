@@ -14,6 +14,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
   const [loading, setLoading] = React.useState(false);
   const [chatStatus, setChatStatus] = React.useState<string | null>(null);
   const [chatId, setChatId] = React.useState<string>(''); // <-- ChatId as state
+  const [exporting, setExporting] = React.useState(false);
 
   const getGraphClient = React.useCallback(async (): Promise<Client> => {
     const tokenProvider = await context.aadTokenProviderFactory.getTokenProvider();
@@ -155,6 +156,67 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     setLoading(false);
   };
 
+    // Remove all members from the group chat
+  const removeAllMembers = async () => {
+    if (!chatId) return;
+    setLoading(true);
+    try {
+      const graphClient = await getGraphClient();
+      const membersResult = await graphClient.api(`/chats/${chatId}/members`).get();
+      const membersList = membersResult.value;
+      for (const member of membersList) {
+        await graphClient.api(`/chats/${chatId}/members/${member.id}`).delete();
+      }
+      setMembers([]);
+      alert('All members removed!');
+    } catch (error) {
+      alert('Error removing members');
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
+  // Export chat conversation as text file
+  const exportChat = async () => {
+    if (!chatId) return;
+    setExporting(true);
+    try {
+      const graphClient = await getGraphClient();
+      const messages: any[] = [];
+      let response = await graphClient.api(`/chats/${chatId}/messages`).get();
+
+      messages.push(...response.value);
+
+      // Handle paging if more messages
+      while (response["@odata.nextLink"]) {
+        response = await graphClient.api(response["@odata.nextLink"]).get();
+        messages.push(...response.value);
+      }
+
+      // Format messages
+      const text = messages.map(msg => {
+        const time = new Date(msg.createdDateTime).toLocaleString();
+        const user = msg.from?.user?.displayName || "Unknown";
+        // Remove HTML tags from content
+        const content = (msg.body?.content || "").replace(/<[^>]+>/g, '');
+        return `[${time}] ${user}: ${content}`;
+      }).join('\n');
+
+      // Download as .txt
+      const blob = new Blob([text], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `chat-${chatId}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      alert('Error exporting chat');
+      console.error(error);
+    }
+    setExporting(false);
+  };
+
   return (
     <div>
       <div>Chat ID : {chatId}</div>
@@ -193,6 +255,22 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
           text="Remove User"
           onClick={removeUser}
           disabled={loading || !userToRemove || !chatId}
+          style={{ marginLeft: 8 }}
+        />
+      </div>
+            <div style={{ marginBottom: 12 }}>
+        <PrimaryButton
+          text="Remove All Members"
+          onClick={removeAllMembers}
+          disabled={loading || !chatId}
+          style={{ marginLeft: 8, backgroundColor: '#f44336', border: 'none' }}
+        />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <PrimaryButton
+          text={exporting ? "Exporting..." : "Export Chat as Text"}
+          onClick={exportChat}
+          disabled={exporting || !chatId}
           style={{ marginLeft: 8 }}
         />
       </div>
