@@ -82,8 +82,11 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
   };
 
   const handleStartChat = () => {
-    const ownerUserId = '63ba8e24-e214-4825-94f2-219a24addd23';
-    const chosenUserId = '44929a9b-34a1-4091-9111-fa6e06b51665';
+    //const ownerUserId = '63ba8e24-e214-4825-94f2-219a24addd23';
+    //const chosenUserId = '44929a9b-34a1-4091-9111-fa6e06b51665';
+
+    const ownerUserId = 'c84fef7c-dbd7-4c5a-86b0-f685ad6df3d3';
+    const chosenUserId = 'ee6f74ea-2466-4868-be44-a03842bd5995';
     createGroupChat(ownerUserId, chosenUserId);
   };
 
