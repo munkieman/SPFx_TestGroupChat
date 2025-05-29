@@ -45,10 +45,65 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     }
   };
 
-  const createGroupChat = async (ownerUserId: string, chosenUserId: string): Promise<void> => {
+/*
+  private async createGroupChat(): Promise<void> {
+    // Add as many user IDs as you want for the group chat
+    const userIds = [
+      "user1-id", // Replace with actual Azure AD object ID
+      "user2-id", // Replace with actual Azure AD object ID
+      "user3-id"  // Replace with actual Azure AD object ID
+    ];
+
+    const chatPayload = {
+      chatType: "group",
+      members: userIds.map(userId => ({
+        "@odata.type": "#microsoft.graph.aadUserConversationMember",
+        roles: ["Owner"],
+        "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userId}`
+      }))
+    };
+
+    try {
+      const graphClient: MSGraphClientV3 = await this.context.msGraphClientFactory.getClient("3");
+      // Create the group chat
+      const chatResponse = await graphClient
+        .api('/chats')
+        .post(chatPayload);
+
+      console.log('Group chat created successfully:', chatResponse);
+
+      // Optionally, post a welcome message
+      const chatId = chatResponse.id;
+      await this.postMessageToChat(graphClient, chatId, "Welcome to the group chat!");
+    } catch (error) {
+      console.error('Error creating group chat:', error);
+    }
+  }
+*/
+
+  const createGroupChat = async (chosenUserId: string): Promise<void> => {
     try {
       const client = await getGraphClient();
 
+      const userIds = [
+        "63ba8e24-e214-4825-94f2-219a24addd23", // Replace with actual Azure AD object ID
+        "user2-id", // Replace with actual Azure AD object ID
+        "user3-id",  // Replace with actual Azure AD object ID
+        chosenUserId
+      ];
+
+      const chatPayload = {
+        chatType: "group",
+        topic: "Test Chat",
+        members: userIds.map(userId => ({
+          "@odata.type": "#microsoft.graph.aadUserConversationMember",
+          roles: ["Owner"],
+          "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userId}`
+        })),
+        visibleHistoryStartDateTime: new Date().toISOString()
+      };
+
+/*      
       const chatPayload ={
         chatType: 'Group',
         topic: "Test Chat",
@@ -66,6 +121,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
         ],
         visibleHistoryStartDateTime: new Date().toISOString()
       };
+*/
 
       const response = await client.api(`/chats`).post(chatPayload);      
       console.log('Chat created successfully:', response);
@@ -82,9 +138,9 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
   };
 
   const handleStartChat = () => {
-    const ownerUserId = '63ba8e24-e214-4825-94f2-219a24addd23';
+    //const ownerUserId = '63ba8e24-e214-4825-94f2-219a24addd23';
     const chosenUserId = '44929a9b-34a1-4091-9111-fa6e06b51665';
-    createGroupChat(ownerUserId, chosenUserId);
+    createGroupChat(chosenUserId);
   };
 
   const refreshMembers = React.useCallback(async () => {
