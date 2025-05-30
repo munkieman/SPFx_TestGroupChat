@@ -55,6 +55,18 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
         "7d34dacb-983a-48a9-af7a-33206578532a"  // Tony McGovern
       ];
 
+      const chatPayload = {
+        chatType: "group",
+        topic: "Test Chat",
+        members: userIds.map(userId => ({
+          "@odata.type": "#microsoft.graph.aadUserConversationMember",
+          roles: ["Owner"],
+          "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userId}`
+        })),
+        visibleHistoryStartDateTime: new Date().toISOString()
+      };
+
+/*      
       const chatPayload ={
         chatType: 'Group',
         topic: "Test Chat",
@@ -65,6 +77,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
         })),
         visibleHistoryStartDateTime: new Date().toISOString()
       };
+*/
 
       const response = await client.api(`/chats`).post(chatPayload);      
       console.log('Chat created successfully:', response);
