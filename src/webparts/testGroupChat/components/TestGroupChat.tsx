@@ -45,25 +45,24 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     }
   };
 
-  const createGroupChat = async (ownerUserId: string, chosenUserId: string): Promise<void> => {
+  const createGroupChat = async (): Promise<void> => {
     try {
       const client = await getGraphClient();
+      const userIds = [
+        "c84fef7c-dbd7-4c5a-86b0-f685ad6df3d3", // Chris Wright
+        "ee6f74ea-2466-4868-be44-a03842bd5995", // Jason Clark
+        "878efe57-59fc-455b-9ce8-d418fd87db96", // Clare Harrison
+        "7d34dacb-983a-48a9-af7a-33206578532a"  // Tony McGovern
+      ];
 
       const chatPayload ={
         chatType: 'Group',
         topic: "Test Chat",
-        members: [
-          {
-            "@odata.type": "#microsoft.graph.aadUserConversationMember",
-            "roles": ["owner"],
-            "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${ownerUserId}`,
-          },
-          {
-            "@odata.type": "#microsoft.graph.aadUserConversationMember",
-            "roles": ["owner"],
-            "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${chosenUserId}`,
-          }
-        ],
+        members: userIds.map(userId => ({
+          "@odata.type": "#microsoft.graph.aadUserConversationMember",
+          roles: ["Owner"],
+          "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userId}`
+        })),
         visibleHistoryStartDateTime: new Date().toISOString()
       };
 
@@ -85,9 +84,9 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     //const ownerUserId = '63ba8e24-e214-4825-94f2-219a24addd23';
     //const chosenUserId = '44929a9b-34a1-4091-9111-fa6e06b51665';
 
-    const ownerUserId = 'c84fef7c-dbd7-4c5a-86b0-f685ad6df3d3';
-    const chosenUserId = 'ee6f74ea-2466-4868-be44-a03842bd5995';
-    createGroupChat(ownerUserId, chosenUserId);
+    //const ownerUserId = 'c84fef7c-dbd7-4c5a-86b0-f685ad6df3d3';
+    //const chosenUserId = 'ee6f74ea-2466-4868-be44-a03842bd5995';
+    createGroupChat();
   };
 
   const refreshMembers = React.useCallback(async () => {
