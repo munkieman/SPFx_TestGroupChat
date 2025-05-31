@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ITestGroupChatProps } from './ITestGroupChatProps';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { Client } from '@microsoft/microsoft-graph-client';
@@ -131,7 +131,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     setLoading(false);
   }, [getGraphClient, chatId]);
 
-    React.useEffect(() => {
+  useEffect(() => {
     if (chatId) {
       refreshMembers();
     }
