@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useState } from 'react';
 import type { ITestGroupChatProps } from './ITestGroupChatProps';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { Client } from '@microsoft/microsoft-graph-client';
@@ -8,13 +9,13 @@ import 'isomorphic-fetch';
 const Chat: React.FC<ITestGroupChatProps> = (props) => {
   const { context } = props;
 
-  const [userToAdd, setUserToAdd] = React.useState('');
-  const [userToRemove, setUserToRemove] = React.useState('');
-  const [members, setMembers] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [chatStatus, setChatStatus] = React.useState<string | null>(null);
-  const [chatId, setChatId] = React.useState<string>(''); // <-- ChatId as state
-  const [exporting, setExporting] = React.useState(false);
+  const [userToAdd, setUserToAdd] = useState('');
+  const [userToRemove, setUserToRemove] = useState('');
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [chatStatus, setChatStatus] = useState<string | null>(null);
+  const [chatId, setChatId] = useState<string>(''); // <-- ChatId as state
+  const [exporting, setExporting] = useState(false);
 
   const getGraphClient = React.useCallback(async (): Promise<Client> => {
     const tokenProvider = await context.aadTokenProviderFactory.getTokenProvider();
@@ -48,36 +49,46 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
   const createGroupChat = async (): Promise<void> => {
     try {
       const client = await getGraphClient();
+
       const userIds = [
-        "c84fef7c-dbd7-4c5a-86b0-f685ad6df3d3", // Chris Wright
-        "ee6f74ea-2466-4868-be44-a03842bd5995", // Jason Clark
-        "878efe57-59fc-455b-9ce8-d418fd87db96", // Clare Harrison
-        "7d34dacb-983a-48a9-af7a-33206578532a"  // Tony McGovern
+        'c79cdecd-0a47-483a-a55b-e5612be126f0',
+        '63ba8e24-e214-4825-94f2-219a24addd23',
+        'f6e0e5fd-46a5-4c6e-b42b-13ec7fdc8c0f'
+        // add more
       ];
 
+      const members = userIds.map(uid => ({
+        "@odata.type": "#microsoft.graph.aadUserConversationMember",
+        "roles": ["owner"],
+        "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${uid}`
+      }));
+
       const chatPayload = {
-        chatType: "group",
-        topic: "Test Chat",
-        members: userIds.map(userId => ({
-          "@odata.type": "#microsoft.graph.aadUserConversationMember",
-          roles: ["Owner"],
-          "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userId}`
-        })),
+        chatType: 'Group',
+        topic: "My Group Chat",
+        members,
         visibleHistoryStartDateTime: new Date().toISOString()
       };
 
-/*      
+      /*
       const chatPayload ={
         chatType: 'Group',
-        topic: "Test Chat",
-        members: userIds.map(userId => ({
-          "@odata.type": "#microsoft.graph.aadUserConversationMember",
-          roles: ["Owner"],
-          "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userId}`
-        })),
+        topic: "Test Expenses Chat",
+        members: [
+          {
+            "@odata.type": "#microsoft.graph.aadUserConversationMember",
+            "roles": ["owner"],
+            "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${ownerUserId}`,
+          },
+          {
+            "@odata.type": "#microsoft.graph.aadUserConversationMember",
+            "roles": ["owner"],
+            "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${chosenUserId}`,
+          }
+        ],
         visibleHistoryStartDateTime: new Date().toISOString()
       };
-*/
+      */
 
       const response = await client.api(`/chats`).post(chatPayload);      
       console.log('Chat created successfully:', response);
@@ -94,9 +105,11 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
   };
 
   const handleStartChat = () => {
+    //Munkie
     //const ownerUserId = '63ba8e24-e214-4825-94f2-219a24addd23';
-    //const chosenUserId = '44929a9b-34a1-4091-9111-fa6e06b51665';
+    //const chosenUserId = 'c79cdecd-0a47-483a-a55b-e5612be126f0';
 
+    //MAX Prod
     //const ownerUserId = 'c84fef7c-dbd7-4c5a-86b0-f685ad6df3d3';
     //const chosenUserId = 'ee6f74ea-2466-4868-be44-a03842bd5995';
     createGroupChat();
@@ -118,7 +131,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     setLoading(false);
   }, [getGraphClient, chatId]);
 
-  React.useEffect(() => {
+    React.useEffect(() => {
     if (chatId) {
       refreshMembers();
     }
@@ -130,14 +143,23 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     try {
       const graphClient = await getGraphClient();
       const now = new Date().toISOString();
+      const userEmail = props.context.pageContext.user.email;
+        
+      //Fetch the user ID
+      const userResponse = await graphClient.api(`/users/${userEmail}`).get();  
+      const userData = await userResponse.json();
+      const userId = userData.id;
+      setUserToAdd(userId);
+      console.log("userID",userId,userData);
+
       const memberPayload = {
         "@odata.type": "#microsoft.graph.aadUserConversationMember",
         "roles": ["Owner"],
         "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userToAdd}`,
         "visibleHistoryStartDateTime": now
       };
-      await graphClient.api(`/chats/${chatId}/members`).post(memberPayload);
-      setUserToAdd('');
+
+      await graphClient.api(`/chats/${chatId}/members`).post(memberPayload);      
       await refreshMembers();
       alert('User added without history!');
     } catch (error) {
