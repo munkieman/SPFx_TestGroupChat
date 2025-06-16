@@ -69,14 +69,6 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
         userIds.push(currentUserId);
       }
 
-      const currentUser = await client.api('/me').get();
-      const currentUserId = currentUser.id;
-
-      // Ensure current user is in the userIds array
-      if (!userIds.includes(currentUserId)) {
-        userIds.push(currentUserId);
-      }
-
       const members = userIds.map(uid => ({
         "@odata.type": "#microsoft.graph.aadUserConversationMember",
         "roles": ["owner"],
@@ -113,7 +105,6 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     //const ownerUserId = 'c84fef7c-dbd7-4c5a-86b0-f685ad6df3d3';
     //const chosenUserId = 'ee6f74ea-2466-4868-be44-a03842bd5995';
     createGroupChat();
-    addUser();
   };
 
   const refreshMembers = React.useCallback(async () => {
