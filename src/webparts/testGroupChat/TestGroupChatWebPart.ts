@@ -11,9 +11,11 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import * as strings from 'TestGroupChatWebPartStrings';
 import TestGroupChat from './components/TestGroupChat';
 import { ITestGroupChatProps } from './components/ITestGroupChatProps';
+import { PropertyFieldPeoplePicker, PrincipalType } from '@pnp/spfx-property-controls/lib/PropertyFieldPeoplePicker';
 
 export interface ITestGroupChatWebPartProps {
   description: string;
+  owners: any[]; // Optional property to store owners
 }
 
 export default class TestGroupChatWebPart extends BaseClientSideWebPart<ITestGroupChatWebPartProps> {
@@ -30,7 +32,9 @@ export default class TestGroupChatWebPart extends BaseClientSideWebPart<ITestGro
         environmentMessage: this._environmentMessage,
         hasTeamsContext: !!this.context.sdks.microsoftTeams,
         userDisplayName: this.context.pageContext.user.displayName,
-        context: this.context
+        owners: this.properties.owners, // Pass the selected users
+        context: this.context, // Pass the context to the component
+        currentUserEmail: this.context.pageContext.user.email // Optional property to store the current user
       }
     );
 
@@ -42,8 +46,6 @@ export default class TestGroupChatWebPart extends BaseClientSideWebPart<ITestGro
       this._environmentMessage = message;
     });
   }
-
-
 
   private _getEnvironmentMessage(): Promise<string> {
     if (!!this.context.sdks.microsoftTeams) { // running in Teams, office.com or Outlook
@@ -111,7 +113,18 @@ export default class TestGroupChatWebPart extends BaseClientSideWebPart<ITestGro
               groupFields: [
                 PropertyPaneTextField('description', {
                   label: strings.DescriptionFieldLabel
-                })
+                }),
+                PropertyFieldPeoplePicker('owners', {
+                  label: 'Select up to 10 users',
+                  initialData: this.properties.owners,
+                  allowDuplicate: false,
+                  principalType: [PrincipalType.Users],
+                  multiSelect: true,
+                  onPropertyChange: this.onPropertyPaneFieldChanged.bind(this),
+                  context: this.context,
+                  properties: this.properties,
+                  key: 'ownersPeoplePicker'
+                })                
               ]
             }
           ]
