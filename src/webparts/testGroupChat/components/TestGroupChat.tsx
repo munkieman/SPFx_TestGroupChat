@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import type { ITestGroupChatProps } from './ITestGroupChatProps';
-import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
+import { PrimaryButton } from '@fluentui/react/lib/Button';
 import { Client } from '@microsoft/microsoft-graph-client';
 import 'isomorphic-fetch';
 
@@ -9,8 +9,6 @@ import 'isomorphic-fetch';
 const Chat: React.FC<ITestGroupChatProps> = (props) => {
   const { context } = props;
 
-  const [userToAdd, setUserToAdd] = useState('');
-  const [userToRemove, setUserToRemove] = useState('');
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [chatStatus, setChatStatus] = useState<string | null>(null);
@@ -48,14 +46,29 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
 
   const createGroupChat = async (): Promise<void> => {
     try {
-      const client = await getGraphClient();
+      const graphClient = await getGraphClient();
 
+      /* Munkie 365 
       const userIds = [
         'c79cdecd-0a47-483a-a55b-e5612be126f0',
         '63ba8e24-e214-4825-94f2-219a24addd23',
         'f6e0e5fd-46a5-4c6e-b42b-13ec7fdc8c0f'
         // add more
-      ];
+      ]; */
+
+      /* Max Dev 365 */
+      const userIds = [
+        '8532aff4-a77d-4bde-9657-36cd12269f38',
+        '2939cad2-59eb-4e66-82da-6f9e47f1e142'
+      ]
+
+      const currentUser = await graphClient.api('/me').get();
+      const currentUserId = currentUser.id;
+
+      // Ensure current user is in the userIds array
+      if (!userIds.includes(currentUserId)) {
+        userIds.push(currentUserId);
+      }
 
       const members = userIds.map(uid => ({
         "@odata.type": "#microsoft.graph.aadUserConversationMember",
@@ -70,32 +83,12 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
         visibleHistoryStartDateTime: new Date().toISOString()
       };
 
-      /*
-      const chatPayload ={
-        chatType: 'Group',
-        topic: "Test Expenses Chat",
-        members: [
-          {
-            "@odata.type": "#microsoft.graph.aadUserConversationMember",
-            "roles": ["owner"],
-            "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${ownerUserId}`,
-          },
-          {
-            "@odata.type": "#microsoft.graph.aadUserConversationMember",
-            "roles": ["owner"],
-            "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${chosenUserId}`,
-          }
-        ],
-        visibleHistoryStartDateTime: new Date().toISOString()
-      };
-      */
-
-      const response = await client.api(`/chats`).post(chatPayload);      
+      const response = await graphClient.api(`/chats`).post(chatPayload);      
       console.log('Chat created successfully:', response);
 
       setChatId(response.id); // Set chatId in state
 
-      await postMessageToChat(client, response.id, "Welcome to the chat! Let’s get started.");
+      await postMessageToChat(graphClient, response.id, "Welcome to the chat! Let’s get started.");
        
       setChatStatus('Chat created successfully!');
     } catch (error) {
@@ -137,63 +130,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     }
   }, [refreshMembers, chatId]);
 
-  const addUser = async () => {
-    if (!userToAdd || !chatId) return;
-    setLoading(true);
-    try {
-      const graphClient = await getGraphClient();
-      const now = new Date().toISOString();
-      const userEmail = props.context.pageContext.user.email;
-        
-      //Fetch the user ID
-      const userResponse = await graphClient.api(`/users/${userEmail}`).get();  
-      const userData = await userResponse.json();
-      const userId = userData.id;
-      setUserToAdd(userId);
-      console.log("userID",userId,userData);
-
-      const memberPayload = {
-        "@odata.type": "#microsoft.graph.aadUserConversationMember",
-        "roles": ["Owner"],
-        "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userToAdd}`,
-        "visibleHistoryStartDateTime": now
-      };
-
-      await graphClient.api(`/chats/${chatId}/members`).post(memberPayload);      
-      await refreshMembers();
-      alert('User added without history!');
-    } catch (error) {
-      alert('Error adding user');
-      // eslint-disable-next-line no-console
-      console.error(error);
-    }
-    setLoading(false);
-  };
-
-  const removeUser = async () => {
-    if (!userToRemove || !chatId) return;
-    setLoading(true);
-    try {
-      const graphClient = await getGraphClient();
-      const membersResult = await graphClient.api(`/chats/${chatId}/members`).get();
-      const memberToRemove = membersResult.value.find((m: any) => m.userId === userToRemove);
-      if (memberToRemove) {
-        await graphClient.api(`/chats/${chatId}/members/${memberToRemove.id}`).delete();
-        setUserToRemove('');
-        await refreshMembers();
-        alert('User removed!');
-      } else {
-        alert('User not found in chat');
-      }
-    } catch (error) {
-      alert('Error removing user');
-      // eslint-disable-next-line no-console
-      console.error(error);
-    }
-    setLoading(false);
-  };
-
-    // Remove all members from the group chat
+  // Remove all members from the group chat
   const removeAllMembers = async () => {
     if (!chatId) return;
     setLoading(true);
@@ -266,36 +203,6 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
       </div>
 
       <div style={{ marginBottom: 12 }}>
-        <input
-          type="text"
-          placeholder="Azure AD object ID to add"
-          value={userToAdd}
-          onChange={e => setUserToAdd(e.target.value)}
-          disabled={loading}
-        />
-        <PrimaryButton
-          text="Add User Without History"
-          onClick={addUser}
-          disabled={loading || !userToAdd || !chatId}
-          style={{ marginLeft: 8 }}
-        />
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <input
-          type="text"
-          placeholder="Azure AD object ID to remove"
-          value={userToRemove}
-          onChange={e => setUserToRemove(e.target.value)}
-          disabled={loading}
-        />
-        <DefaultButton
-          text="Remove User"
-          onClick={removeUser}
-          disabled={loading || !userToRemove || !chatId}
-          style={{ marginLeft: 8 }}
-        />
-      </div>
-            <div style={{ marginBottom: 12 }}>
         <PrimaryButton
           text="Remove All Members"
           onClick={removeAllMembers}
@@ -327,3 +234,63 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
 };
 
 export default Chat;
+
+/*
+
+  const addUser = async () => {
+    if (!userToAdd || !chatId) return;
+    setLoading(true);
+    try {
+      const graphClient = await getGraphClient();
+      const now = new Date().toISOString();
+      const userEmail = props.context.pageContext.user.email;
+        
+      //Fetch the user ID
+      const userResponse = await graphClient.api(`/users/${userEmail}`).get();  
+      const userData = await userResponse.json();
+      const userId = userData.id;
+      setUserToAdd(userId);
+      console.log("userID",userId,userData);
+
+      const memberPayload = {
+        "@odata.type": "#microsoft.graph.aadUserConversationMember",
+        "roles": ["Owner"],
+        "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${userToAdd}`,
+        "visibleHistoryStartDateTime": now
+      };
+
+      await graphClient.api(`/chats/${chatId}/members`).post(memberPayload);      
+      await refreshMembers();
+      alert('User added without history!');
+    } catch (error) {
+      alert('Error adding user');
+      // eslint-disable-next-line no-console
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
+  const removeUser = async () => {
+    if (!userToRemove || !chatId) return;
+    setLoading(true);
+    try {
+      const graphClient = await getGraphClient();
+      const membersResult = await graphClient.api(`/chats/${chatId}/members`).get();
+      const memberToRemove = membersResult.value.find((m: any) => m.userId === userToRemove);
+      if (memberToRemove) {
+        await graphClient.api(`/chats/${chatId}/members/${memberToRemove.id}`).delete();
+        setUserToRemove('');
+        await refreshMembers();
+        alert('User removed!');
+      } else {
+        alert('User not found in chat');
+      }
+    } catch (error) {
+      alert('Error removing user');
+      // eslint-disable-next-line no-console
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
+*/
