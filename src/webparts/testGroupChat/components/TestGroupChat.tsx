@@ -15,14 +15,15 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     //currentUserEmail
   } = props;
 
-  const [members, setMembers] = useState<any[]>([]);
+  //const [members, setMembers] = useState<any[]>([]);
   const [displayName, setDisplayName] = useState(userDisplayName);
-  const [presences, setPresences] = useState<{ [objectId: string]: { name: string, presence: string } }>({});
+  //const [presences, setPresences] = useState<{ [objectId: string]: { name: string, presence: string } }>({});
   const [loading, setLoading] = useState(false);
   const [chatStatus, setChatStatus] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string>(''); // <-- ChatId as state
   const [exporting, setExporting] = useState(false);
 
+/*  
   const getPresenceStyle = (presence: string): React.CSSProperties => {
     const normalized = (presence || '').toLowerCase();
     if (normalized === 'available') {
@@ -36,6 +37,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     }
     return {};
   };
+*/
 
   const getGraphClient = React.useCallback(async (): Promise<Client> => {
     const tokenProvider = await context.aadTokenProviderFactory.getTokenProvider();
@@ -149,9 +151,9 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     setLoading(true);
     try {
       // Use the owners array from props directly
-      setMembers(owners || []);
+      //setMembers(owners || []);
     } catch (e) {
-      setMembers([]);
+      //setMembers([]);
     }
     setLoading(false);
   }, [owners]);
@@ -176,6 +178,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     setLoading(false);
   };
 
+/*  
   const fetchPresences = async () => {
     if (!owners || owners.length === 0) {
       setPresences({});
@@ -231,6 +234,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     );
     setPresences(presenceResult);
   };
+*/
 
   // Export chat conversation as text file
   const exportChat = async () => {
@@ -279,13 +283,13 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
   }, [userDisplayName]);
 
   // Fetch user presence when owners change
-  useEffect(() => {
-    if (owners && owners.length > 0) {
-      fetchPresences();
-    } else {
-      setPresences({});
-    }
-  }, [owners]);
+  //useEffect(() => {
+  //  if (owners && owners.length > 0) {
+  //    fetchPresences();
+  //  } else {
+  //    setPresences({});
+  //  }
+  //}, [owners]);
 
   //useEffect(() => {
   //  console.log("owners prop changed:", owners);
@@ -332,6 +336,16 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
         <h4>Current Group Chat Members</h4>
         {loading ? <div>Loading members...</div> : null}
           <h3>Advisors</h3>
+          
+      </div>
+    </div>
+  );
+};
+
+export default Chat;
+
+/*
+
           <ul>
             {members.length > 0 ? (
               members.map((member, idx) => {
@@ -364,14 +378,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
               <li>No advisors selected.</li>
             )}
           </ul> 
-      </div>
-    </div>
-  );
-};
 
-export default Chat;
-
-/*
 
   const addUser = async () => {
     if (!userToAdd || !chatId) return;
