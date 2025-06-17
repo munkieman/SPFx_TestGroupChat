@@ -4,16 +4,38 @@ import type { ITestGroupChatProps } from './ITestGroupChatProps';
 import { PrimaryButton } from '@fluentui/react/lib/Button';
 import { Client } from '@microsoft/microsoft-graph-client';
 import 'isomorphic-fetch';
+import { AadHttpClient, HttpClientResponse } from '@microsoft/sp-http';
 
 // Chat component using React hooks (can be moved to its own file if desired)
 const Chat: React.FC<ITestGroupChatProps> = (props) => {
-  const { context } = props;
+  const { 
+    userDisplayName,
+    context,
+    owners=[],
+    //currentUserEmail
+  } = props;
 
   const [members, setMembers] = useState<any[]>([]);
+  const [displayName, setDisplayName] = useState(userDisplayName);
+  const [presences, setPresences] = useState<{ [objectId: string]: { name: string, presence: string } }>({});
   const [loading, setLoading] = useState(false);
   const [chatStatus, setChatStatus] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string>(''); // <-- ChatId as state
   const [exporting, setExporting] = useState(false);
+
+  const getPresenceStyle = (presence: string): React.CSSProperties => {
+    const normalized = (presence || '').toLowerCase();
+    if (normalized === 'available') {
+      return { color: 'green', fontWeight: 'bold' };
+    }
+    if (normalized === 'busy' || normalized === 'focusing' || normalized === 'donotdisturb') {
+      return { color: 'red', fontWeight: 'bold' };
+    }
+    if (normalized === 'unavailable') {
+      return { color: 'grey' };
+    }
+    return {};
+  };
 
   const getGraphClient = React.useCallback(async (): Promise<Client> => {
     const tokenProvider = await context.aadTokenProviderFactory.getTokenProvider();
@@ -45,8 +67,10 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
   };
 
   const createGroupChat = async (): Promise<void> => {
+
     try {
       const graphClient = await getGraphClient();
+      const aadClient: AadHttpClient = await context.aadHttpClientFactory.getClient('https://graph.microsoft.com');
 
       /* Munkie 365 
       const userIds = [
@@ -56,20 +80,45 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
       ]; */
 
       /* Max Dev 365 */
-      const userIds = [
-        '8532aff4-a77d-4bde-9657-36cd12269f38',
-        '2939cad2-59eb-4e66-82da-6f9e47f1e142'
-      ]
+      //const userIds = [
+      //  '8532aff4-a77d-4bde-9657-36cd12269f38',
+      //  '2939cad2-59eb-4e66-82da-6f9e47f1e142'
+      //]
+
+      const objectIds: string[] = [];
+      await Promise.all(
+        (owners || []).map(async (owner) => {
+          const upn = owner.email || (owner.loginName && owner.loginName.split('|').pop());
+          if (!upn) return;
+          try {
+            const userResponse: HttpClientResponse = await aadClient.get(
+              `https://graph.microsoft.com/v1.0/users/${upn}`,
+              AadHttpClient.configurations.v1
+            );
+            if (!userResponse.ok) throw new Error("Failed to fetch user");
+            const userData = await userResponse.json();
+            if (userData.id) objectIds.push(userData.id);
+          } catch {
+            // skip if cannot resolve
+          }
+        })
+      );
+
+      if (objectIds.length === 0) {
+        setChatStatus('No users selected.');
+        return;
+      }
 
       const currentUser = await graphClient.api('/me').get();
       const currentUserId = currentUser.id;
 
       // Ensure current user is in the userIds array
-      if (!userIds.includes(currentUserId)) {
-        userIds.push(currentUserId);
+      if (!objectIds.includes(currentUserId)) {
+        objectIds.push(currentUserId);
       }
 
-      const members = userIds.map(uid => ({
+      // Prepare members array for the chat payload
+      const members = objectIds.map(uid => ({
         "@odata.type": "#microsoft.graph.aadUserConversationMember",
         "roles": ["owner"],
         "user@odata.bind": `https://graph.microsoft.com/v1.0/users/${uid}`
@@ -77,7 +126,7 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
 
       const chatPayload = {
         chatType: 'Group',
-        topic: "My Group Chat",
+        topic: "Expenses Chat with "+displayName,
         members,
         visibleHistoryStartDateTime: new Date().toISOString()
       };
@@ -96,38 +145,16 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     }
   };
 
-  const handleStartChat = () => {
-    //Munkie
-    //const ownerUserId = '63ba8e24-e214-4825-94f2-219a24addd23';
-    //const chosenUserId = 'c79cdecd-0a47-483a-a55b-e5612be126f0';
-
-    //MAX Prod
-    //const ownerUserId = 'c84fef7c-dbd7-4c5a-86b0-f685ad6df3d3';
-    //const chosenUserId = 'ee6f74ea-2466-4868-be44-a03842bd5995';
-    createGroupChat();
-  };
-
   const refreshMembers = React.useCallback(async () => {
-    if (!chatId) {
-      setMembers([]);
-      return;
-    }
     setLoading(true);
     try {
-      const graphClient = await getGraphClient();
-      const result = await graphClient.api(`/chats/${chatId}/members`).get();
-      setMembers(result.value || []);
+      // Use the owners array from props directly
+      setMembers(owners || []);
     } catch (e) {
       setMembers([]);
     }
     setLoading(false);
-  }, [getGraphClient, chatId]);
-
-  useEffect(() => {
-    if (chatId) {
-      refreshMembers();
-    }
-  }, [refreshMembers, chatId]);
+  }, [owners]);
 
   // Remove all members from the group chat
   const removeAllMembers = async () => {
@@ -140,13 +167,69 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
       for (const member of membersList) {
         await graphClient.api(`/chats/${chatId}/members/${member.id}`).delete();
       }
-      setMembers([]);
+      //setMembers([]);
       alert('All members removed!');
     } catch (error) {
       alert('Error removing members');
       console.error(error);
     }
     setLoading(false);
+  };
+
+  const fetchPresences = async () => {
+    if (!owners || owners.length === 0) {
+      setPresences({});
+      return;
+    }
+    
+    const aadClient: AadHttpClient = await context.aadHttpClientFactory.getClient('https://graph.microsoft.com');
+    const presenceResult: { [objectId: string]: { name: string, presence: string } } = {};
+
+    await Promise.all(
+      owners.map(async (owner) => {
+        
+        // Get UPN/email from owner
+        const upn = owner.email || (owner.loginName && owner.loginName.split('|').pop());
+        console.log("Processing owner:", owner, "UPN:", upn);
+        if (!upn) return;
+        
+        try {
+            // 1. Get the user object from Graph to obtain the object ID
+            const userResponse: HttpClientResponse = await aadClient.get(
+              `https://graph.microsoft.com/v1.0/users/${upn}`,
+              AadHttpClient.configurations.v1
+            );
+            if (!userResponse.ok) throw new Error("Failed to fetch user");
+            const userData = await userResponse.json();
+            const objectId = userData.id;
+            const displayName = userData.displayName || owner.text;
+
+            console.log("Owners:", owners);
+            console.log("Fetching presence for:", userData.displayName, "Object ID:", objectId);
+                       
+            // 2. Get the presence using the object ID
+            let presenceValue = "Unknown";
+            try {
+              const presenceResponse: HttpClientResponse = await aadClient.get(
+                `https://graph.microsoft.com/v1.0/users/${objectId}/presence`,
+                AadHttpClient.configurations.v1
+              );
+              if (presenceResponse.ok) {
+                const presenceData = await presenceResponse.json();
+                presenceValue = presenceData.availability || "Unknown";
+                console.log("Presence response:", presenceData);
+                console.log("Final presences state:", presenceResult);
+              }
+            } catch {
+              // fall through, leave as "Unknown"
+            }
+            presenceResult[objectId] = { name: displayName, presence: presenceValue };
+          } catch {
+            // If the user can't be resolved, don't add it
+          }
+      })
+    );
+    setPresences(presenceResult);
   };
 
   // Export chat conversation as text file
@@ -190,43 +273,97 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
     setExporting(false);
   };
 
+  // Update displayName if userDisplayName prop changes
+  useEffect(() => {
+    setDisplayName(userDisplayName);
+  }, [userDisplayName]);
+
+  // Fetch user presence when owners change
+  useEffect(() => {
+    if (owners && owners.length > 0) {
+      fetchPresences();
+    } else {
+      setPresences({});
+    }
+  }, [owners]);
+
+  //useEffect(() => {
+  //  console.log("owners prop changed:", owners);
+  //  fetchPresences();   
+  //}, [owners, context.aadHttpClientFactory]);
+
+  useEffect(() => {
+    refreshMembers();
+  }, [refreshMembers]);
+
   return (
     <div>
-      <div>Chat ID : {chatId}</div>
-      <div>
+      <div style={{ marginBottom: 10 }}>
         <PrimaryButton 
           text="Start Group Chat"
-          onClick={handleStartChat}
+          onClick={createGroupChat}
+          style={{backgroundColor: '#502e91', border: 'none' }}
         />
-        {chatStatus && <p>{chatStatus}</p>}
       </div>
 
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 10 }}>
         <PrimaryButton
           text="Remove All Members"
           onClick={removeAllMembers}
           disabled={loading || !chatId}
-          style={{ marginLeft: 8, backgroundColor: '#f44336', border: 'none' }}
+          style={{ backgroundColor: '#f44336', border: 'none' }}
         />
       </div>
-      <div style={{ marginBottom: 12 }}>
+
+      <div style={{ marginBottom: 10 }}>
         <PrimaryButton
           text={exporting ? "Exporting..." : "Export Chat as Text"}
           onClick={exportChat}
           disabled={exporting || !chatId}
-          style={{ marginLeft: 8 }}
+          style={{backgroundColor: '#200941', border: 'none' }}
         />
       </div>
+
+      <div>Chat ID : {chatId}</div>
+      {chatStatus && <p>{chatStatus}</p>}
+      <br/>
+
       <div>
         <h4>Current Group Chat Members</h4>
         {loading ? <div>Loading members...</div> : null}
-        <ul>
-          {members.map(m => (
-            <li key={m.id}>
-              {m.displayName || m.userId} ({m.roles?.join(', ') || 'Member'})
-            </li>
-          ))}
-        </ul>
+          <h3>Advisors</h3>
+          <ul>
+            {members.length > 0 ? (
+              members.map((member, idx) => {
+                // Try to get the objectId for presence lookup
+                const objectId = member.id || member.objectId;
+                const info = objectId ? presences[objectId] : undefined;
+                const name = member.displayName || member.text || member.email || 'Unknown';
+                const presence = info ? info.presence : 'Unknown';
+                return (
+                  <li key={objectId || member.email || idx}>
+                    {name} — <span style={getPresenceStyle(presence)}>{presence}</span>
+                  </li>
+                );
+              })
+            ) : (
+              <li>No advisors selected.</li>
+            )}
+          </ul>
+          <ul>
+            {Object.keys(presences).length > 0 ? (
+              Object.keys(presences).map(objectId => {
+                const info = presences[objectId];
+                return (
+                  <li key={objectId}>
+                    {info.name} — <span style={getPresenceStyle(info.presence)}>{info.presence}</span>
+                  </li>
+                );
+              })
+            ) : (
+              <li>No advisors selected.</li>
+            )}
+          </ul> 
       </div>
     </div>
   );
