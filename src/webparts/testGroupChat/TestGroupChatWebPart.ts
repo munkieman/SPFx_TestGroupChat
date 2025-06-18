@@ -101,7 +101,8 @@ export default class TestGroupChatWebPart extends BaseClientSideWebPart<ITestGro
   }
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
-    return {
+
+    return {      
       pages: [
         {
           header: {
