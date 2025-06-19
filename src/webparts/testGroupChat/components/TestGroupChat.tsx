@@ -368,7 +368,21 @@ const Chat: React.FC<ITestGroupChatProps> = (props) => {
 export default Chat;
 
 /*
-
+    {(owners.length > 0 ? owners : members).length > 0 ? (
+      (owners.length > 0 ? owners : members).map((person, idx) => {
+        const objectId = person.id;
+        const info = presences[objectId];
+        const name = person.fullName || person.text || person.email || 'Unknown';
+        const presence = info ? info.presence : 'Unknown';
+        return (
+          <li key={objectId || idx}>
+            {name} — <span style={getPresenceStyle(presence)}>{presence}</span>
+          </li>
+        );
+      })
+    ) : (
+      <li>No advisors selected.</li>
+    )}
 
           <br/>
                   <ul>
